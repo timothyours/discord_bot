@@ -1,10 +1,9 @@
-import discord
-from discord.ext import commands
-from discord.utils import get
-import youtube_dl
-import os
+import asyncio
 import random
 from datetime import datetime
+
+import discord
+from discord.ext import commands
 
 
 
@@ -38,21 +37,12 @@ CARS = [
 
 bot = commands.Bot(command_prefix=PREFIX)
 
-async def play_callback(voice, headmes, statusmes, name):
-	await voice.disconnect()
-#	await headmes.delete()
-#	await statusmes.delete()
-#	print(statusmes)
-#	print(name + " has finished playing.")
+
 
 @bot.event
 async def on_ready():
     print('Logged in as ' + bot.user.name + '\n')
 
-@bot.command()
-async def hello(ctx):
-    """Says world"""
-    await ctx.send("world")
 
 
 @bot.command()
@@ -75,73 +65,12 @@ async def roads(ctx):
 
 	await mes.delete()
 
-	
-
-@bot.command(aliases = ["p", "pla"])
-async def play(ctx, url:str):
-	await ctx.message.delete()
-	headmes = await ctx.send(ctx.message.author.name + " has requested " + url + ".")
-
-	statusmes = await ctx.send("Preparing...")
-	channel = ctx.message.author.voice.channel
-	voice = get(bot.voice_clients, guild=ctx.guild)
-
-	if voice and voice.is_connected():
-		await voice.move_to(channel)
-	else:
-		voice = await channel.connect()
-		print(f'Connected to {channel}\n')
-	
-	song_there = os.path.isfile("song.mp3")
-	try:
-		if song_there:
-			os.remove("song.mp3")
-			print("Removed old song file.\n")
-	except PermissionError:
-		print("Should add song to queue.")
-		return
-	
-	await statusmes.delete()
-	statusmes = await ctx.send("Downloading audio...")
-	print("Retrieving song.\n")
-
-	voice = get(bot.voice_clients, guild=ctx.guild)
-
-	ydl_opts = {
-		'format': 'bestaudio/best',
-		'postprocessors': [{
-			'key': 'FFmpegExtractAudio',
-			'preferredcodec': 'mp3',
-			'preferredquality': '192',
-		}],
-	}
-
-	with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-		print("Downloading audio now\n")
-		ydl.download([url])
-
-	await statusmes.delete()
-	statusmes = await ctx.send("Processing...")
-
-	for file in os.listdir("./"):
-		if file.endswith(".mp3"):
-			name = file
-			print(f"Renamed {file} to song.mp3.")
-			os.rename(file, "song.mp3")
-
-	await statusmes.delete()
-	statusmes = await ctx.send("Playing...")
-	voice.play(discord.FFmpegPCMAudio("song.mp3"), after=await play_callback(voice, headmes, statusmes, name))
-
-	voice.source = discord.PCMVolumeTransformer(voice.source)
-	voice.source.volume = 0.10
-
 
 
 #RVGL Commands
 
-@bot.command(aliases = ["rt", "rvrt", "rvglrt", "rand_track", "random_track"])
-async def rv_rand_track(ctx, level:int=3, upto:bool=True):
+@bot.command(name="random_track", aliases = ["rt", "rand_track", "rvrt", "revolt_random_track"])
+async def random_track(ctx, level:int=3, upto:bool=True):
 	await ctx.message.delete()
 	
 	track = ""
@@ -159,8 +88,8 @@ async def rv_rand_track(ctx, level:int=3, upto:bool=True):
 		
 	await ctx.send("Random Track: " + track + mir + rev);
 
-@bot.command(aliases = ["rc", "rvrc", "rvglrc", "rand_car", "random_car"])
-async def rv_rand_car(ctx, level:int=5, upto:bool=True):
+@bot.command(name="random_car", aliases = ["rc", "rand_car", "rvrc", "revolt_random_car"])
+async def random_car(ctx, level:int=5, upto:bool=True):
 	await ctx.message.delete()
 	
 	car = ""
@@ -174,4 +103,9 @@ async def rv_rand_car(ctx, level:int=5, upto:bool=True):
 
 
 
+bot.load_extension("cogs.Events")
+bot.load_extension("cogs.Base")
+bot.load_extension("cogs.Music")
+
 bot.run(TOKEN)
+
