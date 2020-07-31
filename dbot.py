@@ -106,6 +106,7 @@ async def random_car(ctx, level:int=5, upto:bool=True):
 bot.load_extension("cogs.Events")
 bot.load_extension("cogs.Base")
 bot.load_extension("cogs.Music")
+bot.load_extension("cogs.Funny")
 
 bot.run(TOKEN)
 
