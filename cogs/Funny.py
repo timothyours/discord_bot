@@ -3,12 +3,14 @@ from discord.ext import commands
 import requests
 from bs4 import BeautifulSoup
 
-class Base(commands.Cog):
+class Funny(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 
 	@commands.command(name="deref")
 	async def ifunny_dereference(self, ctx, url):
+		"""Takes an iFunny url and gets the direct url for the image or video"""
+
 		await ctx.message.delete()
 		r = requests.get(url)
 		soup = BeautifulSoup(r.text, "html.parser")
@@ -23,4 +25,4 @@ class Base(commands.Cog):
 		await ctx.send(ctx.message.author.display_name + " posted " + src)
 
 def setup(bot):
-	bot.add_cog(Base(bot));
+	bot.add_cog(Funny(bot));
