@@ -23,7 +23,7 @@ class Funny(commands.Cog):
 		else:
 			src = content=media.find("img").attrs["data-src"]
 
-		await message.channel.send(message.author.display_name + " posted " + src)
+		await message.channel.send("**" + message.author.display_name + "** posted " + src)
 
 
 	@commands.command(name="deref")
