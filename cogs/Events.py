@@ -13,8 +13,10 @@ class Events(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_message(self, message):
+		check = re.findall(r'\/deref', message.content)
 		url = re.findall(r'https:\/\/ifunny\.co\/.*?(?:$|\s)', message.content)
-		if(len(url) > 0):
+
+		if(not len(check) > 0 and len(url) > 0):
 			await self.bot.get_cog("Funny").handle_ifunny(message, url[0])
 
 	#@commands.Cog.listener()
