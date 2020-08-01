@@ -1,4 +1,7 @@
+import re
 from discord.ext import commands
+
+
 
 class Events(commands.Cog):
 	def __init__(self, bot):
@@ -7,6 +10,12 @@ class Events(commands.Cog):
 	@commands.Cog.listener()
 	async def on_command(self, ctx):
 		print("\n" + ctx.message.author.display_name + " invoked command " + ctx.command.name + "\n")
+
+	@commands.Cog.listener()
+	async def on_message(self, message):
+		url = re.findall(r'https:\/\/ifunny\.co\/.*?(?:$|\s)', message.content)
+		if(len(url) > 0):
+			await self.bot.get_cog("Funny").handle_ifunny(message, url[0])
 
 	#@commands.Cog.listener()
 	#async def on_command_error(self, ctx, error):
