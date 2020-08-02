@@ -9,7 +9,7 @@ class Events(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_command(self, ctx):
-		print("\n" + ctx.message.author.display_name + " invoked command " + ctx.command.name + "\n")
+		print("\n" + ctx.message.author.display_name + " invoked command " + ctx.command.name)
 
 	@commands.Cog.listener()
 	async def on_message(self, message):
