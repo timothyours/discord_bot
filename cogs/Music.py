@@ -1,3 +1,4 @@
+import re
 import os
 import asyncio
 import youtube_dl
@@ -17,6 +18,14 @@ class Music(commands.Cog):
 
 		self.ytdl_opts = {
 			'default_search': 'auto',
+			'format': 'bestaudio/best',
+			'postprocessors': [{
+				'key': 'FFmpegExtractAudio',
+				'preferredcodec': 'mp3',
+				'preferredquality': '192',
+			}],
+		}
+		self.ytdl_opts_urls = {
 			'format': 'bestaudio/best',
 			'postprocessors': [{
 				'key': 'FFmpegExtractAudio',
@@ -73,7 +82,7 @@ class Music(commands.Cog):
 
 		self.messages.append(await self.current_audio["chat"].send("Downloading audio..."))
 		print("Retrieving audio")
-	
+		
 		with youtube_dl.YoutubeDL(self.ytdl_opts) as ytdl:
 			print("Downloading audio now")
 			ytdl.download([url])
@@ -152,7 +161,9 @@ class Music(commands.Cog):
 			if len(self.queue) > 0:
 				asyncio.run_coroutine_threadsafe(self.dequeue(), self.bot.loop)
 			else:
+				self.current_audio = None
 				asyncio.run_coroutine_threadsafe(voice.disconnect(), self.bot.loop)
+				asyncio.run_coroutine_threadsafe(self.clear_messages(), self.bot.loop)
 
 		voice.play(discord.FFmpegPCMAudio("song.mp3"), after=play_callback)
 		voice.source = discord.PCMVolumeTransformer(voice.source)
@@ -166,13 +177,23 @@ class Music(commands.Cog):
 	async def enqueue(self, ctx, search):
 		with youtube_dl.YoutubeDL(self.ytdl_opts) as ytdl:
 			info = ytdl.extract_info(search, download=False)
-			self.queue.append({
-				"user": ctx.message.author.display_name,
-				"channel": ctx.author.voice.channel,
-				"title": info["entries"][0]["title"],
-				"url": info["entries"][0]["webpage_url"],
-				"chat": ctx,
-			})
+		
+			if re.match(r'https:\/\/www\.youtube\.com\/.*', search):
+				self.queue.append({
+					"user": ctx.message.author.display_name,
+					"channel": ctx.author.voice.channel,
+					"title": info["title"],
+					"url": search,
+					"chat": ctx,
+				})
+			else:
+				self.queue.append({
+					"user": ctx.message.author.display_name,
+					"channel": ctx.author.voice.channel,
+					"title": info["entries"][0]["title"],
+					"url": info["entries"][0]["webpage_url"],
+					"chat": ctx,
+				})
 
 
 
@@ -222,6 +243,7 @@ class Music(commands.Cog):
 
 		voice = ctx.guild.voice_client
 		if voice:
+			self.current_audio = None
 			self.queue.clear()
 			voice.stop()
 
