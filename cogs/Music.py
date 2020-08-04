@@ -15,6 +15,7 @@ class Music(commands.Cog):
 		self.messages = []
 		self.current_audio = None
 		self.state = None
+		self.volume = 0.2
 
 		self.ytdl_opts = {
 			'default_search': 'auto',
@@ -164,7 +165,7 @@ class Music(commands.Cog):
 
 		voice.play(discord.FFmpegPCMAudio("music/v_" + self.current_audio["id"] + ".mp3"), after=play_callback)
 		voice.source = discord.PCMVolumeTransformer(voice.source)
-		voice.source.volume = 0.1
+		voice.source.volume = self.volume
 		
 		if self.state == 2:
 			voice.pause()
@@ -314,7 +315,7 @@ class Music(commands.Cog):
 
 		voice.play(discord.FFmpegPCMAudio("moan.mp3"), after=play_callback)
 		voice.source = discord.PCMVolumeTransformer(voice.source)
-		voice.source.volume = 0.1	
+		voice.source.volume = self.volume
 
 
 
