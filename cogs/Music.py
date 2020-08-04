@@ -18,6 +18,7 @@ class Music(commands.Cog):
 
 		self.ytdl_opts = {
 			'default_search': 'auto',
+			'outtmpl': 'music/v_%(id)s.%(ext)s',
 			'format': 'bestaudio/best',
 			'postprocessors': [{
 				'key': 'FFmpegExtractAudio',
@@ -26,6 +27,7 @@ class Music(commands.Cog):
 			}],
 		}
 		self.ytdl_opts_urls = {
+			'outtmpl': 'music/v_%(id)s.%(ext)s',
 			'format': 'bestaudio/best',
 			'postprocessors': [{
 				'key': 'FFmpegExtractAudio',
@@ -69,48 +71,47 @@ class Music(commands.Cog):
 		return voice
 
 
-	async def get_audio(self, url):
-		song_there = os.path.isfile("song.mp3")
-		try:
-			if song_there:
-				os.remove("song.mp3")
-				print("Removed old song file\n")
-		except PermissionError:
-			print("Should add song to queue.")
-			return
+	def check_ids(self, i):
+		for entry in self.queue:
+			if entry["id"] == i:
+				print(i + " is in the queue")
+				return True
+		print(i + " is not in the queue")
+		return False
 
 
-		self.messages.append(await self.current_audio["chat"].send("Downloading audio..."))
-		print("Retrieving audio")
+	async def delete_audio(self, i):
+		print("Deleting music/v_" + i + ".mp3...")
+		os.remove("music/v_" + i + ".mp3")
+		print("Done")
+
+
+	async def purge_audio(self):
+		print("Purging audio...")
+		for file in os.listdir("./music/"):
+			print("Deleting music/" + file + "...")
+			os.remove("music/" + file)
+		print("Done")
+
+
+	async def get_audio(self, entry):
+		self.messages.append(await entry["chat"].send("Downloading " + entry["title"] + "..."))
+		print("Retrieving " + entry["title"] + "...")
 		
 		with youtube_dl.YoutubeDL(self.ytdl_opts) as ytdl:
-			print("Downloading audio now")
-			ytdl.download([url])
+			ytdl.download([entry["url"]])
 
 		await self.pop_message()
 		print("Done\n")
 
 
-		self.messages.append(await self.current_audio["chat"].send("Processing..."))
-		print("Rearranging files...")
-	
-		for file in os.listdir("./"):
-			if file.endswith(".mp3"):
-				name = file
-				print(f"Renamed {file} to song.mp3.")
-				os.rename(file, "song.mp3")
-
-		await self.pop_message()
-		print("Done\n")
-
-	
 	async def print_audio(self):
 		await self.clear_messages()
 		
 		mes1 = ""
 
 		if self.state == 0:
-			mes1 += "Preparing to play "
+			mes1 += "Preparing to play " 
 		if self.state == 1:
 			mes1 += "Now playing "
 		if self.state == 2:
@@ -143,29 +144,25 @@ class Music(commands.Cog):
 
 		voice = await self.get_voice(self.current_audio["channel"])
 
-		print("Preparing to play " + self.current_audio["title"] + ": " + self.current_audio["url"])
 
-		prev = self.state
-		self.state = 0
-		await self.print_audio()
-
-		await self.get_audio(self.current_audio["url"])
-
-		if prev == 0:
+		if self.state == 0:
 			self.state = 1
-		else:
-			self.state = prev
 		await self.print_audio()
 
 		def play_callback(err):
 			if len(self.queue) > 0:
+				print("HERE: ", end="")
+				print(self.check_ids(self.current_audio["id"]))
+				if not self.check_ids(self.current_audio["id"]):
+					asyncio.run_coroutine_threadsafe(self.delete_audio(self.current_audio["id"]), self.bot.loop)
 				asyncio.run_coroutine_threadsafe(self.dequeue(), self.bot.loop)
 			else:
 				self.current_audio = None
 				asyncio.run_coroutine_threadsafe(voice.disconnect(), self.bot.loop)
 				asyncio.run_coroutine_threadsafe(self.clear_messages(), self.bot.loop)
+				asyncio.run_coroutine_threadsafe(self.purge_audio(), self.bot.loop)
 
-		voice.play(discord.FFmpegPCMAudio("song.mp3"), after=play_callback)
+		voice.play(discord.FFmpegPCMAudio("music/v_" + self.current_audio["id"] + ".mp3"), after=play_callback)
 		voice.source = discord.PCMVolumeTransformer(voice.source)
 		voice.source.volume = 0.1
 		
@@ -175,25 +172,39 @@ class Music(commands.Cog):
 
 	#Gets video information and adds it to the queue
 	async def enqueue(self, ctx, search):
+		entry = None
+
 		with youtube_dl.YoutubeDL(self.ytdl_opts) as ytdl:
 			info = ytdl.extract_info(search, download=False)
 		
 			if re.match(r'https:\/\/www\.youtube\.com\/.*', search):
-				self.queue.append({
+				entry = {
 					"user": ctx.message.author.display_name,
 					"channel": ctx.author.voice.channel,
 					"title": info["title"],
 					"url": search,
 					"chat": ctx,
-				})
+					"id": info["id"],
+				}
 			else:
-				self.queue.append({
+				entry = {
 					"user": ctx.message.author.display_name,
 					"channel": ctx.author.voice.channel,
 					"title": info["entries"][0]["title"],
 					"url": info["entries"][0]["webpage_url"],
 					"chat": ctx,
-				})
+					"id": info["entries"][0]["id"],
+				}
+		
+		if self.current_audio is None:
+			print("Preparing to play " + entry["title"] + ": " + entry["url"])
+			self.state = 0
+			#await self.print_audio()
+		
+		if not self.check_ids(entry["id"]) and (self.current_audio is None or entry["id"] != self.current_audio["id"]):
+			await self.get_audio(entry)
+
+		self.queue.append(entry)
 
 
 
@@ -283,6 +294,27 @@ class Music(commands.Cog):
 			await self.dequeue()
 		else:
 			await self.print_audio()
+	
+
+	@commands.command(hidden = True)
+	async def moan(self, ctx):
+		"""Moan"""
+
+		await ctx.message.delete()
+		
+		voice = await self.get_voice(ctx.author.voice.channel)
+
+		def play_callback(err):
+			if len(self.queue) > 0:
+				asyncio.run_coroutine_threadsafe(self.dequeue(), self.bot.loop)
+			else:
+				self.current_audio = None
+				asyncio.run_coroutine_threadsafe(voice.disconnect(), self.bot.loop)
+				asyncio.run_coroutine_threadsafe(self.clear_messages(), self.bot.loop)
+
+		voice.play(discord.FFmpegPCMAudio("moan.mp3"), after=play_callback)
+		voice.source = discord.PCMVolumeTransformer(voice.source)
+		voice.source.volume = 0.1	
 
 
 
